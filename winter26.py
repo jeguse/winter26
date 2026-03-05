@@ -1,7 +1,7 @@
 from itertools import product
 from time import time
 
-n = 2
+n = 5
 # ---------------------------
 # 1 << 2n      =  10...0
 # 1 << 2n - 1  =  011..1
@@ -42,15 +42,18 @@ for row_number in range(n):
             pivot_bits.add(2 * n - int.bit_length(prev_row))
             
         # ... and for each candidate for the next row
-        for row_data in range(1, 1 << (2 * n + 1)):
+        for row_data in range(1, 1 << (n + 1)):
             
             # Build the next row by allowing n+1 bits of data to control our n+1 degrees of freedom...
             # Start by setting everything to 0
             next_row = 0
             # Fill in the bits that are not "too far to the left" or "under previous pivots" using the n+1 given bits of data
-            for index_within_row in range(n - row_number - 1, 2 * n, 1):
+            k = 1 << n
+            for index_within_row in range(n - row_number - 1, 2 * n):
                 if index_within_row not in pivot_bits:
-                    next_row ^= row_data & (1 << (2 * n - index_within_row - 1))
+                    if (row_data & k).bit_count() == 1:
+                        next_row ^= 1 << (2 * n - index_within_row - 1)
+                    k >>= 1
 
             # Check RREF condition
             if len(mat) > 0 and mat[-1] > next_row:
@@ -68,15 +71,14 @@ for row_number in range(n):
             # RREF and isotropic conditions satisfied, so append this row to the in-progress-matrix
             # and store this matrix-in-progress of height row_number + 1
             temp.append(mat + [next_row])
-
     # Update all_spaces so it now stores the height row_number + 1 matrices in preparation for the next iteration
     all_spaces = temp
 
 count = 0
 for space in all_spaces:
-    print("_________")
-    for row in space:
-        print(bin(row))
+    # print("_________")
+    # for row in space:
+    #     print(bin(row))
     count += 1
 print(count)
 
