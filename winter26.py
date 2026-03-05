@@ -3,7 +3,7 @@ from time import time
 
 t1 = time()
 
-n = 5
+n = int(input("Value of n: "))
 # ---------------------------
 # 1 << 2n      =  10...0
 # 1 << 2n - 1  =  011..1
@@ -76,13 +76,16 @@ for row_number in range(n):
     # Update all_spaces so it now stores the height row_number + 1 matrices in preparation for the next iteration
     all_spaces = temp
 
+# Some printing to partially verify correctness of the code so far
 count = 0
 for space in all_spaces:
     # print("_________")
     # for row in space:
     #     print(bin(row))
     count += 1
-print(count)
+print("Number of maximal isotropic subspaces found: " + str(count))
+print("Time used: " + str(time() - t1) + " seconds")
+t1 = time()
 
 
 
@@ -141,17 +144,83 @@ for row_number in range(n-1):
     # Update all_subspaces so it now stores the height row_number + 1 matrices in preparation for the next iteration
     all_subspaces = temp
 
+# Some printing to partially verify correctness of the (n-1)-dimensional subspace computation
 count = 0
 for space in all_subspaces:
     count += 1
-print(count)
+print("Number of (n-1)-dimensional isotropic subspaces: " + str(count))
+print("Time used: " + str(time() - t1) + " seconds")
+t1 = time()
+
+# Next, we will compute the bipartite graph of n-dimensional and (n-1)-dimensional isotropic subspaces,
+# where edges represent containment of the (n-1)-dimensional space on one side in the n-dimensional space on the other side
+
+# Helper function which takes in a vector, of type int, and a matrix in reversed RREF, of type [int],
+# and outputs an [int] denoting the coefficients when writing vector in the row span of the matrix,
+# or [] if the vector is not in the row span of the matrix
+def write_in_basis(vector, basis):
+    output = []
+
+    # If vector is in the row span, then it is just a bitwise xor of entries in basis
+    # By reversing the basis, we check that the leftmost bits can be satisfied, then move to the right
+    for basis_element in reversed(basis):
+        # If the vector has a set bit too far to the left to be zeroed out, we will never be able to xor to 0
+        if vector.bit_length() > basis_element.bit_length():
+            return []
+        # If the vector's leftmost set bit and the basis_element's set bit are in the same position, we must xor with this
+        # basis_element if we want any hope of xoring to 0
+        elif vector.bit_length() == basis_element.bit_length():
+            # Record that we xor with this basis_element for expansion in this basis
+            output = [1] + output
+            vector ^= basis_element
+        # Otherwise, we should not xor with this basis_element
+        else:
+            # Record that we do not xor with this basis_element for expansion in this basis
+            output = [0] + output
+    # Report either that we couldn't xor to 0 or report the expansion in basis
+    if vector != 0:
+        return []
+    return output
 
 
-# TODO: Initialize the bipartite graph
-# TODO: Adding the COB matrices to the edges
+# This dict will eventually hold all edges in the form (large_space, small_space): change_of_basis_matrix
+# where the data types are (tuple(int), tuple(int)): [[int]]
+cob_matrices = {}
+
+# We check all pairs of n-dimensional spaces and (n-1)-dimensional spaces
+for (space_matrix, subspace_matrix) in product(all_spaces, all_subspaces):
+    conflict = False
+    cob_matrix = []
+    # We check that every row of the small matrix is in the row span of the large matrix and compute the COB matrix as we go
+    for row in subspace_matrix:
+        cob_row = write_in_basis(row, space_matrix)
+        if len(cob_row) == 0:
+            conflict = True
+            break
+        cob_matrix += [cob_row]
+    # If every basis vector of the small space is indeed in the large space, store the edge for this pair of spaces
+    if not conflict:
+        cob_matrices[(tuple(space_matrix), tuple(subspace_matrix))] = cob_matrix
+
+
+# Some code to partially verify that the edges are correct
+# TODO find a better way to verify that our set of edges is correct and comprehensive
+print("A few samples of edges, for verification purposes:")
+for (space_matrix, subspace_matrix) in product(all_spaces[::100], all_subspaces[::100]):
+    if (tuple(space_matrix), tuple(subspace_matrix)) in cob_matrices:
+        print("_________Large Space_________")
+        for row in space_matrix:
+            print(row)
+        print("_________Small Space_________")
+        for row in subspace_matrix:
+            print(row)
+        print("_______Change of Basis_______")
+        print(cob_matrices[(tuple(space_matrix), tuple(subspace_matrix))])
+print("Total number of edges found: " + str(len(cob_matrices)))
+print("Time used: " + str(time() - t1) + " seconds")
+t1 = time()
+
+
 # TODO: Akey[matrix] = randomized
 # TODO: create the loop for doing one step of optimization (max bob's stuff subject to the two-hop neighbors)
 # TODO: implement the hill-climb (simple)
-
-
-print(str(time() - t1))
