@@ -1,84 +1,7 @@
 from itertools import product
+from time import time
 
-
-n = 4
-
-def dotprod(x,y):
-    total = 0
-    for i in range(n):
-        total = total ^ (x[2 * i] and y[2 * i + 1]) ^ (x[2 * i + 1] and y[2 * i])
-    return total
-
-def isotropic(x,y):
-    return not dotprod(x,y)
-
-def rrefcheck(x,y):
-    if x < y or x[y.find('1')] == '1': return False
-    return True
-
-# Pauli matrices
-paulis = ['01', '10', '11']
-# Pauli matrices and I
-paulisi = ['00', '01', '10', '11']
-
-
-# If row 1 starts with I, then we will have a dead end, so we force row 1 to start with non-I
-# This will eventually store all candidates to be row 1
-row1s = paulis
-
-# This will eventually store all vectors at all
-vecs = paulisi
-
-
-#for row in product('01', n+1):
-
-
-
-# # This fills in all possible vectors
-# for i in range(n-1):
-#     temp1 = []
-#     temp2 = []
-#     for m in paulisi:
-#         for vec in row1s:
-#             # take every possible vector currently in row1 and every possible "next tensor component" and pairwise concatenate
-#             temp1.append(vec + m)
-#         for vec in vecs:
-#             temp2.append(vec + m)
-#     row1s = temp1
-#     vecs = temp2
-
-# # No point considering the all-0 vector
-# vecs.pop(0)
-
-# # Improvement idea: instead of looping over length-2n bit strings, loop over length-(n+1) bit strings
-
-# allspaces = []
-# # gives all possible starts
-# for row in vecs: # row1s
-#     allspaces.append([row])
-# for i in range(n-1):
-#     temp = []
-#     for mat in allspaces:
-#         for vec in vecs:
-#             conflict = False
-#             for row in mat:
-#                 if not(rrefcheck(vec,row) and isotropic(vec,row)):
-#                     conflict = True
-#             if not conflict:
-#                 temp.append(mat + [vec])
-#     allspaces = temp
-
-
-# # printing some results for checking
-# for mat in allspaces:
-#     print("__________")
-#     for row in mat:
-#         print(row)
-
-
-# print(len(allspaces))
-
-n = 5
+n = 2
 # ---------------------------
 # 1 << 2n      =  10...0
 # 1 << 2n - 1  =  011..1
@@ -92,16 +15,12 @@ z_mask = x_mask ^ all_bits
 
 def commutes(a, b):
     ax = x_mask & a
-    az = z_mask & a
+    az = (z_mask & a) >> 1
     bx = x_mask & b
-    bz = z_mask & b
+    bz = (z_mask & b) >> 1
     res = (ax & bz) ^ (az & bx)
     return res.bit_count() & 1 == 0
 
-# count = 0
-# for matrix in product(product('01', repeat=n+1), repeat=n):
-#     count += 1
-# print(count)
 
 
 # Gives all nonzero boolean vectors of length n+1, which is enough data to define the next row at each step of our algorithm
@@ -124,7 +43,8 @@ pivot_indices = []
 all_spaces = list()
 all_spaces.append([])
 
-# We will want n many rows, so we iterate over the number of rows we've computed so far
+
+# We will want n many rows, row_number represents the number of rows we've computed so far
 for row_number in range(n):
 
     # Set up a place to store all partial matrices of height row_number + 1
@@ -133,45 +53,34 @@ for row_number in range(n):
     # For each matrix-in-progress of height row_number...
     for mat in all_spaces:
         # TODO would be preferred to not recompute pivot_indices over and over
-        pivot_indices = []
+        pivot_bits = set()
         for prev_row in mat:
-            pivot_indices += [prev_row.index(True)]
-        
-        # Bitmask version:
-        '''
-        pivot_bits = []
-        for prev_row in mat:
-            pivot_bits += [2 * n - int.bit_length(prev_row)]
-        '''
+            pivot_bits.add(2 * n - int.bit_length(prev_row))
             
         # ... and for each candidate for the next row
-        for row_data in row_data_list:
+        for row_data in range(1, 1 << (2 * n)):
             
-            # Get the n+1 bits of data required to build the next row into a form we can use easily
-            next_row_data = iter(row_data)
-
             # Build the next row by allowing n+1 bits of data to control our n+1 degrees of freedom...
             # Start by setting everything to 0
-            next_row = [False] * (2 * n)
+            next_row = 0
             # Fill in the bits that are not "too far to the left" or "under previous pivots" using the n+1 given bits of data
-            for index_within_row in range(n - row_number - 1, 2 * n):
+            for index_within_row in range(2 * n - 1, n - row_number - 2, -1):
+                next_row *= 2
                 if index_within_row not in pivot_indices:
-                    next_row[index_within_row] = next(next_row_data)
+                    next_row += row_data % 2
+                    row_data >>= 1
+                    
 
-            # Check RREF condition and update pivot_indices for future RREF checks
-            # TODO updating pivot_indices currently doesn't help, since we are just recomputing it every time
-            if (True in next_row) and (next_row.index(True) < min(pivot_indices + [3 * n])):
-                pass
-                # pivot_indices += [next_row.index(True)]
-            else:
+            # Check RREF condition
+            if len(mat) > 0 and mat[-1] > next_row:
                 continue
 
             # Check isotropic condition
             conflict = False
             for prev_row in mat:
-                if not isotropic(next_row, prev_row):
+                if not commutes(next_row, prev_row):
                     conflict = True
-                    # break
+                    break
             if conflict:
                 continue
             
@@ -245,10 +154,10 @@ for row_number in range(n):
 
             # Check isotropic condition
             conflict = False
-            for prev_row in mat:
-                if not isotropic(next_row, prev_row):
-                    conflict = True
-                    # break
+            # for prev_row in mat:
+            #     if not isotropic(next_row, prev_row):
+            #         conflict = True
+            #         # break
             if conflict:
                 continue
             
@@ -259,10 +168,10 @@ for row_number in range(n):
     # Update all_spaces so it now stores the height row_number + 1 matrices in preparation for the next iteration
     all_subspaces = temp
 
-count = 0
-for space in all_subspaces:
-    count += 1
-print(count)
+# count = 0
+# for space in all_subspaces:
+#     count += 1
+# print(count)
 
 
 # TODO: Initialize the bipartite graph
