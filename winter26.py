@@ -79,6 +79,25 @@ vecs = paulisi
 # print(len(allspaces))
 
 n = 5
+# ---------------------------
+# 1 << 2n      =  10...0
+# 1 << 2n - 1  =  011..1
+all_bits = (1 << 2 * n) - 1
+x_mask = all_bits // 3
+# basically creates an alternating bitstring of 0's and 1's
+# x_mask = 0b0101...
+# uses the identity 1 + 4 + 4^2 + ... 4^n = (4^n-1)/3 = (2^2n - 1)/3
+z_mask = x_mask ^ all_bits
+
+
+def commutes(a, b):
+    ax = x_mask & a
+    az = z_mask & a
+    bx = x_mask & b
+    bz = z_mask & b
+    res = (ax & bz) ^ (az & bx)
+    return res.bit_count() & 1 == 0
+
 # count = 0
 # for matrix in product(product('01', repeat=n+1), repeat=n):
 #     count += 1
@@ -86,7 +105,9 @@ n = 5
 
 
 # Gives all nonzero boolean vectors of length n+1, which is enough data to define the next row at each step of our algorithm
+
 row_data_list = list(product([True, False], repeat=n+1))
+# bitmask version: 
 # Remove the all-False vector (improves efficiency very slightly, more importantly this makes later code more convenient to write)
 row_data_list.pop()
 
@@ -116,6 +137,13 @@ for row_number in range(n):
         for prev_row in mat:
             pivot_indices += [prev_row.index(True)]
         
+        # Bitmask version:
+        '''
+        pivot_bits = []
+        for prev_row in mat:
+            pivot_bits += [2 * n - int.bit_length(prev_row)]
+        '''
+            
         # ... and for each candidate for the next row
         for row_data in row_data_list:
             
