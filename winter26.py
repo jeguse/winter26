@@ -1,4 +1,5 @@
 from itertools import product
+from random import getrandbits, seed
 from time import time
 
 t1 = time()
@@ -25,7 +26,7 @@ def commutes(a, b):
 
 
 
-# This list will eventually hold boolean RREFs for every possible maximal isotropic subspace
+# This list will eventually hold RREFs in the form [int] for every possible maximal isotropic subspace
 # We set this list to be the unique 0-row matrix
 all_spaces = list()
 all_spaces.append([])
@@ -93,7 +94,7 @@ t1 = time()
 # and the height of the matrix at the end should be n-1, corresponding to isotropic (n-1)-dimensional subspaces.
 
 
-# This list will eventually hold boolean RREFs for every possible isotropic subspace of dimension n-1
+# This list will eventually hold RREFs in the form [int] for every possible isotropic subspace of dimension n-1
 # We set this list to be the unique 0-row matrix
 all_subspaces = list()
 all_subspaces.append([])
@@ -154,6 +155,8 @@ t1 = time()
 
 # Next, we will compute the bipartite graph of n-dimensional and (n-1)-dimensional isotropic subspaces,
 # where edges represent containment of the (n-1)-dimensional space on one side in the n-dimensional space on the other side
+
+# TODO store edges and vertices in a more graph-like structure (e.g. so we can easily find all neighbors of a given vertex)
 
 # Helper function which takes in a vector, of type int, and a matrix in reversed RREF, of type [int],
 # and outputs an [int] denoting the coefficients when writing vector in the row span of the matrix,
@@ -221,6 +224,28 @@ print("Time used: " + str(time() - t1) + " seconds")
 t1 = time()
 
 
-# TODO: Akey[matrix] = randomized
+# For each maximal isotropic subspace Ref could give Alice, she chooses a dual vector.
+# To start with, let's make this dual vector random
+alice_key = {}
+
+# For repeatability
+seed(0)
+
+for matrix in all_spaces:
+    alice_key[tuple(matrix)] = getrandbits(n)
+
+
 # TODO: create the loop for doing one step of optimization (max bob's stuff subject to the two-hop neighbors)
+
+# Basic idea:
+# for bob_matrix in all_spaces:
+#     # TODO improve graph structure of data storage so that we can compute distance-two neighbors easily
+#     for alice_matrix in distance_two(bob_matrix):
+#         # TODO write a function that takes in neighboring spaces A and B and a dual vector on A and outputs all compatible dual vectors on B
+#         for dual_vector_option in compatible_bob_dual_vectors(alice_key[alice_matrix], bob_matrix):
+#             # TODO set up a good way to both count votes and determine who won the election
+#             cast_vote(dual_vector_option)
+#     elect(dual_vector_with_most_votes)
+
+
 # TODO: implement the hill-climb (simple)
